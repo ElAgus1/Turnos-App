@@ -1,15 +1,76 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+datasource db {
+  provider = "postgresql"
+}
 
 generator client {
   provider = "prisma-client"
-  output   = "../app/generated/prisma"
+  output   = "./generated/prisma"
 }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+enum Role {
+  ADMIN
+  TRAINER
+  CLIENT
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  ATTENDED
+  CANCELLED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      Role     @default(CLIENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  trainerClasses Class[]   @relation("TrainerClasses") // Clases que dicta si es profesor
+  bookings       Booking[] // Reservas que hizo si es alumno
+}
+
+model Activity {
+  id          String   @id @default(uuid())
+  name        String   @unique // Ej: "CrossFit", "Pilates", "Funcional"
+  description String?
+  createdAt   DateTime @default(now())
+
+  classes Class[]
+}
+
+model Class {
+  id         String @id @default(uuid())
+  activityId String
+  trainerId  String
+  dayOfWeek  Int // 1 = Lunes, 2 = Martes, etc.
+  startTime  String // Formato "HH:MM" (ej: "08:00")
+  endTime    String // Formato "HH:MM" (ej: "09:00")
+  capacity   Int // Capacidad máxima de alumnos
+
+  // Relaciones
+  activity Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  trainer  User      @relation("TrainerClasses", fields: [trainerId], references: [id])
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+}
+
+model Booking {
+  id        String        @id @default(uuid())
+  classId   String
+  userId    String
+  date      DateTime // Fecha específica del turno (ej: 2026-05-15)
+  status    BookingStatus @default(CONFIRMED)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Relaciones
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, userId, date]) // Evita que un alumno reserve la misma clase el mismo día dos veces
 }
