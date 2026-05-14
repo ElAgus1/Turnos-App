@@ -1,10 +1,10 @@
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 generator client {
-  provider = "prisma-client"
-  output   = "./generated/prisma"
+  provider = "prisma-client-js"
 }
 
 enum Role {
@@ -28,14 +28,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relaciones
-  trainerClasses Class[]   @relation("TrainerClasses") // Clases que dicta si es profesor
-  bookings       Booking[] // Reservas que hizo si es alumno
+  trainerClasses Class[]   @relation("TrainerClasses")
+  bookings       Booking[]
 }
 
 model Activity {
   id          String   @id @default(uuid())
-  name        String   @unique // Ej: "CrossFit", "Pilates", "Funcional"
+  name        String   @unique
   description String?
   createdAt   DateTime @default(now())
 
@@ -46,12 +45,11 @@ model Class {
   id         String @id @default(uuid())
   activityId String
   trainerId  String
-  dayOfWeek  Int // 1 = Lunes, 2 = Martes, etc.
-  startTime  String // Formato "HH:MM" (ej: "08:00")
-  endTime    String // Formato "HH:MM" (ej: "09:00")
-  capacity   Int // Capacidad máxima de alumnos
+  dayOfWeek  Int
+  startTime  String
+  endTime    String
+  capacity   Int
 
-  // Relaciones
   activity Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
   trainer  User      @relation("TrainerClasses", fields: [trainerId], references: [id])
   bookings Booking[]
@@ -63,14 +61,13 @@ model Booking {
   id        String        @id @default(uuid())
   classId   String
   userId    String
-  date      DateTime // Fecha específica del turno (ej: 2026-05-15)
+  date      DateTime
   status    BookingStatus @default(CONFIRMED)
-  createdAt DateTime      @default(now())
+  createdAt DateTime      @updatedAt
   updatedAt DateTime      @updatedAt
 
-  // Relaciones
   class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([classId, userId, date]) // Evita que un alumno reserve la misma clase el mismo día dos veces
+  @@unique([classId, userId, date])
 }
