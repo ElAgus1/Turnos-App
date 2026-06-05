@@ -21,14 +21,16 @@ enum BookingStatus {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  name         String
-  phone        String?
-  passwordHash String?
-  role         Role     @default(CLIENT)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String    @id @default(uuid())
+  email            String    @unique
+  name             String
+  phone            String?
+  passwordHash     String?
+  role             Role      @default(CLIENT)
+  resetToken       String?   @unique
+  resetTokenExpiry DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   trainerClasses Class[]   @relation("TrainerClasses")
   bookings       Booking[]

@@ -42,7 +42,7 @@ async function main() {
     },
   });
 
-  await prisma.user.create({
+  const cliente = await prisma.user.create({
     data: {
       email: "alumno@gimnasio.com",
       name: "Juan Alumno",
@@ -72,7 +72,7 @@ async function main() {
   console.log("✅ Actividades creadas");
 
   // 4. Crear Clases / Horarios (Ejemplo: Lunes y Miércoles)
-  await prisma.class.create({
+  const class1 = await prisma.class.create({
     data: {
       activityId: crossfit.id,
       trainerId: trainer.id,
@@ -83,7 +83,7 @@ async function main() {
     },
   });
 
-  await prisma.class.create({
+  const class2 = await prisma.class.create({
     data: {
       activityId: funcional.id,
       trainerId: trainer.id,
@@ -95,6 +95,36 @@ async function main() {
   });
 
   console.log("✅ Horarios de clases configurados");
+
+  // 5. Crear Reservas (Bookings) de prueba
+  const today = new Date();
+  const nextMonday = new Date(today);
+  nextMonday.setDate(today.getDate() + ((1 - today.getDay() + 7) % 7));
+  nextMonday.setHours(8, 0, 0, 0);
+
+  const nextWednesday = new Date(today);
+  nextWednesday.setDate(today.getDate() + ((3 - today.getDay() + 7) % 7));
+  nextWednesday.setHours(19, 0, 0, 0);
+
+  await prisma.booking.create({
+    data: {
+      classId: class1.id,
+      userId: cliente.id,
+      date: nextMonday,
+      status: "CONFIRMED",
+    },
+  });
+
+  await prisma.booking.create({
+    data: {
+      classId: class2.id,
+      userId: cliente.id,
+      date: nextWednesday,
+      status: "CONFIRMED",
+    },
+  });
+
+  console.log("✅ Reservas de prueba creadas");
   console.log("🚀 ¡Base de datos sembrada con éxito!");
 }
 
