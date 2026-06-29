@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import Sidebar from "../sidebar";
 import PerfilForm from "./perfil-form";
+import { ProfileImageSection } from "@/components/profile-image-section";
 
 export default async function PerfilPage() {
   const session = await getServerSession(authOptions);
@@ -15,7 +16,6 @@ export default async function PerfilPage() {
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { name: true, email: true, phone: true, role: true },
   });
 
   if (!user) {
@@ -47,26 +47,10 @@ export default async function PerfilPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="md:col-span-1 flex flex-col items-center p-6 rounded-2xl bg-zinc-900/40 border border-zinc-900 backdrop-blur-xl h-fit text-center">
-              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-4">
-                Foto de Perfil
-              </p>
-
-              <div className="relative w-32 h-32 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center text-4xl font-bold text-amber-400 shadow-xl overflow-hidden group">
-                <span>{user.name.charAt(0).toUpperCase()}</span>
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-semibold text-zinc-200 transition-opacity cursor-pointer">
-                  Cambiar Foto
-                </div>
-              </div>
-
-              <button
-                type="button"
-                disabled
-                className="mt-5 px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-500 font-medium text-xs w-full cursor-not-allowed"
-              >
-                Próximamente
-              </button>
-            </div>
+            <ProfileImageSection
+              initialImage={user.profileImage}
+              userName={user.name}
+            />
 
             <div className="md:col-span-2">
               <PerfilForm

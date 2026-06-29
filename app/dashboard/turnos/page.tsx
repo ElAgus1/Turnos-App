@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import Image from "next/image";
 
 export default async function TurnosPage() {
   const session = await getServerSession(authOptions);
@@ -15,6 +16,12 @@ export default async function TurnosPage() {
   const userEmail = session.user?.email || "";
   const userName = session.user?.name || "Usuario";
   const userRole = session.user?.role || "CLIENT";
+
+  // Traer la imagen de perfil
+  const user = await db.user.findUnique({
+    where: { email: userEmail },
+    select: { profileImage: true },
+  });
 
   const totalClasses = await db.class.count();
   const activeBookings = await db.booking.count({
@@ -30,7 +37,29 @@ export default async function TurnosPage() {
 
         <main className="max-w-7xl mx-auto px-6 sm:px-8 py-10 space-y-10">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl flex items-center gap-2">
+            <div className="flex items-center gap-4 mb-4">
+              {user?.profileImage ? (
+                <Image
+                  src={user.profileImage}
+                  alt={userName}
+                  width={56}
+                  height={56}
+                  className="w-14 h-14 rounded-full object-cover border-2 border-amber-400/50"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-full bg-zinc-800 border-2 border-amber-400/50 flex items-center justify-center text-xl font-bold text-amber-400">
+                  {userName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div>
+                <p className="text-sm text-zinc-400">Bienvenido</p>
+                <h2 className="text-2xl font-bold tracking-tight text-white">
+                  {userName}
+                </h2>
+              </div>
+            </div>
+
+            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl flex items-center gap-2 mt-6">
               Mis Turnos
             </h2>
             <p className="text-zinc-400 mt-2 text-sm">
