@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
+import { Trash2, Edit2 } from "lucide-react";
 import Sidebar from "../sidebar";
 
 interface Activity {
@@ -214,7 +215,7 @@ export default function ActividadesPage() {
               Administrar Actividades
             </h1>
             <p className="text-sm text-zinc-400 mt-1">
-              Creá, editá y eliminá actividades del gimnasio.
+              Creá, editá y eliminá disciplinas del gimnasio.
             </p>
           </div>
 
@@ -230,13 +231,13 @@ export default function ActividadesPage() {
           )}
 
           {/* Formulario para crear actividad */}
-          <div className="p-6 rounded-2xl bg-zinc-900/40 border border-zinc-900 backdrop-blur-xl">
+          <div className="p-6 rounded-xl bg-zinc-900/60 border border-zinc-800 backdrop-blur-xl">
             <h2 className="text-lg font-semibold text-white mb-4">
               Nueva Actividad
             </h2>
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
                   Nombre de la Actividad *
                 </label>
                 <input
@@ -251,7 +252,7 @@ export default function ActividadesPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
                   Descripción
                 </label>
                 <textarea
@@ -269,8 +270,8 @@ export default function ActividadesPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Entrenador a cargo *
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
+                  Entrenador Referente *
                 </label>
                 <select
                   value={newActivity.trainerId}
@@ -305,10 +306,10 @@ export default function ActividadesPage() {
           {/* Lista de actividades */}
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-white">
-              Actividades Existentes
+              Disciplinas Registradas
             </h2>
             {activities.length === 0 ? (
-              <div className="p-6 rounded-lg text-center text-zinc-400">
+              <div className="p-6 rounded-lg text-center text-zinc-400 bg-zinc-900/60 border border-zinc-800">
                 No hay actividades creadas aún
               </div>
             ) : (
@@ -316,7 +317,7 @@ export default function ActividadesPage() {
                 {activities.map((activity) => (
                   <div
                     key={activity.id}
-                    className="p-6 rounded-lg bg-zinc-900/40 border border-zinc-900 space-y-4"
+                    className="p-6 rounded-lg bg-zinc-900/60 border border-zinc-800 space-y-4"
                   >
                     {editingId === activity.id ? (
                       <div className="space-y-4">
@@ -388,22 +389,24 @@ export default function ActividadesPage() {
                         )}
                         {activity.trainer && (
                           <p className="text-sm text-amber-400 mt-2">
-                            👤 Entrenador: {activity.trainer.name}
+                            👤 Referente: {activity.trainer.name}
                           </p>
                         )}
                         <div className="flex gap-2 mt-4">
                           <button
                             onClick={() => startEdit(activity)}
                             disabled={loading}
-                            className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium disabled:opacity-50"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium disabled:opacity-50 transition-colors"
                           >
+                            <Edit2 size={16} />
                             Editar
                           </button>
                           <button
                             onClick={() => handleDelete(activity.id)}
                             disabled={loading}
-                            className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium disabled:opacity-50"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium disabled:opacity-50 transition-colors"
                           >
+                            <Trash2 size={16} />
                             Eliminar
                           </button>
                         </div>

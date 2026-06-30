@@ -102,3 +102,130 @@ export async function POST(request: Request) {
     );
   }
 }
+
+// PUT: Editar una clase (Solo ADMIN)
+export async function PUT(request: Request) {
+  const session = await getServerSession(authOptions);
+
+  // Verificar que esté autenticado y sea ADMIN
+  if (!session?.user?.id || session.user.role !== "ADMIN") {
+    return NextResponse.json(
+      { error: "No autorizado. Se requieren permisos de administrador." },
+      { status: 403 },
+    );
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const classId = searchParams.get("id");
+
+    if (!classId) {
+      return NextResponse.json(
+        { error: "ID de clase es requerido" },
+        { status: 400 },
+      );
+    }
+
+    const json = await request.json();
+    const parsed = classSchema.safeParse(json);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? "Datos inválidos" },
+        { status: 400 },
+      );
+    }
+
+    const { activityId, trainerId, dayOfWeek, startTime, endTime, capacity } =
+      parsed.data;
+
+    // Verificar que la clase existe
+    const existingClass = await db.class.findUnique({
+      where: { id: classId },
+    });
+
+    if (!existingClass) {
+      return NextResponse.json(
+        { error: "Clase no encontrada" },
+        { status: 404 },
+      );
+    }
+
+    // Actualizar la clase
+    const updatedClass = await db.class.update({
+      where: { id: classId },
+      data: {
+        activityId,
+        trainerId,
+        dayOfWeek,
+        startTime,
+        endTime,
+        capacity,
+      },
+      include: {
+        activity: true,
+        trainer: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    return NextResponse.json({ class: updatedClass });
+  } catch (error) {
+    console.error("Error al editar clase:", error);
+    return NextResponse.json(
+      { error: "No se pudo editar la clase" },
+      { status: 500 },
+    );
+  }
+}
+
+// DELETE: Eliminar una clase (Solo ADMIN)
+export async function DELETE(request: Request) {
+  const session = await getServerSession(authOptions);
+
+  // Verificar que esté autenticado y sea ADMIN
+  if (!session?.user?.id || session.user.role !== "ADMIN") {
+    return NextResponse.json(
+      { error: "No autorizado. Se requieren permisos de administrador." },
+      { status: 403 },
+    );
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const classId = searchParams.get("id");
+
+    if (!classId) {
+      return NextResponse.json(
+        { error: "ID de clase es requerido" },
+        { status: 400 },
+      );
+    }
+
+    // Verificar que la clase existe
+    const existingClass = await db.class.findUnique({
+      where: { id: classId },
+    });
+
+    if (!existingClass) {
+      return NextResponse.json(
+        { error: "Clase no encontrada" },
+        { status: 404 },
+      );
+    }
+
+    // Eliminar la clase (onDelete: Cascade eliminará las reservas asociadas)
+    await db.class.delete({
+      where: { id: classId },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error al eliminar clase:", error);
+    return NextResponse.json(
+      { error: "No se pudo eliminar la clase" },
+      { status: 500 },
+    );
+  }
+}
