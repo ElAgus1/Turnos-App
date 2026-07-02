@@ -97,7 +97,9 @@ export function AdminClassForm({
     e.preventDefault();
 
     if (!hasSetupData) {
-      alert("Necesitas al menos una actividad y un profesor para crear clases.");
+      alert(
+        "Necesitas al menos una actividad y un profesor para crear clases.",
+      );
       return;
     }
 
@@ -156,7 +158,10 @@ export function AdminClassForm({
       {activities.length === 0 && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
           No hay actividades cargadas. Crea una primero en{" "}
-          <Link href="/dashboard/actividades" className="underline font-semibold">
+          <Link
+            href="/dashboard/actividades"
+            className="underline font-semibold"
+          >
             Administrar Actividades
           </Link>
           .

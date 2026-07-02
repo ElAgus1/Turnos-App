@@ -148,8 +148,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const { activityId, trainerId, dayOfWeek, classDate, startTime, endTime, capacity } =
-      parsed.data;
+    const {
+      activityId,
+      trainerId,
+      dayOfWeek,
+      classDate,
+      startTime,
+      endTime,
+      capacity,
+    } = parsed.data;
 
     let parsedClassDate: Date | null = null;
     let resolvedDayOfWeek = dayOfWeek;
@@ -221,8 +228,15 @@ export async function PUT(request: Request) {
       );
     }
 
-    const { activityId, trainerId, dayOfWeek, classDate, startTime, endTime, capacity } =
-      parsed.data;
+    const {
+      activityId,
+      trainerId,
+      dayOfWeek,
+      classDate,
+      startTime,
+      endTime,
+      capacity,
+    } = parsed.data;
 
     let parsedClassDate: Date | null = null;
     let resolvedDayOfWeek = dayOfWeek;

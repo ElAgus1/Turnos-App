@@ -50,7 +50,7 @@ model Activity {
 }
 
 model Class {
-  id         String @id @default(uuid())
+  id         String    @id @default(uuid())
   activityId String
   trainerId  String
   dayOfWeek  Int
