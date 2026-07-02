@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import SignOutButton from "./signout-button";
 
 interface SidebarProps {
@@ -16,6 +17,16 @@ export default function Sidebar({
   userRole,
 }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(true);
+  const pathname = usePathname();
+
+  const getLinkClasses = (isActive: boolean) =>
+    `flex items-center gap-3 py-2.5 rounded-xl font-medium text-sm transition-all w-full ${
+      isOpen ? "px-4" : "justify-center px-0"
+    } ${
+      isActive
+        ? "bg-amber-400/10 text-amber-400 border border-amber-400/20"
+        : "text-zinc-400 hover:text-white hover:bg-zinc-900/60"
+    }`;
 
   return (
     <div className="relative flex z-20">
@@ -52,9 +63,7 @@ export default function Sidebar({
             {/* Enlace Estadísticas */}
             <Link
               href="/dashboard"
-              className={`flex items-center gap-3 py-2.5 rounded-xl bg-amber-400/10 text-amber-400 font-medium text-sm border border-amber-400/20 transition-all w-full ${
-                isOpen ? "px-4" : "justify-center px-0"
-              }`}
+              className={getLinkClasses(pathname === "/dashboard")}
               title="Estadísticas"
             >
               <span className="text-base shrink-0">📊</span>
@@ -64,9 +73,9 @@ export default function Sidebar({
             {/* Enlace Reservar Turno */}
             <Link
               href="/dashboard/turnos"
-              className={`flex items-center gap-3 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900/60 font-medium text-sm transition-all w-full ${
-                isOpen ? "px-4" : "justify-center px-0"
-              }`}
+              className={getLinkClasses(
+                pathname.startsWith("/dashboard/turnos"),
+              )}
               title="Reservar Turno"
             >
               <span className="text-base shrink-0">🗓️</span>
@@ -77,9 +86,9 @@ export default function Sidebar({
 
             <Link
               href="/dashboard/perfil"
-              className={`flex items-center gap-3 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900/60 font-medium text-sm transition-all w-full ${
-                isOpen ? "px-4" : "justify-center px-0"
-              }`}
+              className={getLinkClasses(
+                pathname.startsWith("/dashboard/perfil"),
+              )}
               title="Mi Perfil"
             >
               <span className="text-base shrink-0">👤</span>
@@ -97,9 +106,9 @@ export default function Sidebar({
 
                 <Link
                   href="/dashboard/actividades"
-                  className={`flex items-center gap-3 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900/60 font-medium text-sm transition-all w-full ${
-                    isOpen ? "px-4" : "justify-center px-0"
-                  }`}
+                  className={getLinkClasses(
+                    pathname.startsWith("/dashboard/actividades"),
+                  )}
                   title="Administrar actividades"
                 >
                   <span className="text-base shrink-0">🏋️</span>
@@ -112,9 +121,9 @@ export default function Sidebar({
 
                 <Link
                   href="/dashboard/clases"
-                  className={`flex items-center gap-3 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900/60 font-medium text-sm transition-all w-full ${
-                    isOpen ? "px-4" : "justify-center px-0"
-                  }`}
+                  className={getLinkClasses(
+                    pathname.startsWith("/dashboard/clases"),
+                  )}
                   title="Administrar clases"
                 >
                   <span className="text-base shrink-0">⏱️</span>

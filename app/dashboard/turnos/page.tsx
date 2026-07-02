@@ -1,10 +1,19 @@
 import { BookingList } from "@/components/booking-list";
+import { ClassSelector } from "@/components/class-selector";
+import { ActiveBookingsCard } from "@/components/active-bookings-card";
 import Sidebar from "../sidebar";
 import { getServerSession } from "next-auth/next";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import Image from "next/image";
+
+function getTodayUtcStart() {
+  const now = new Date();
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+}
 
 export default async function TurnosPage() {
   const session = await getServerSession(authOptions);
@@ -23,9 +32,15 @@ export default async function TurnosPage() {
     select: { profileImage: true },
   });
 
+  const todayUtcStart = getTodayUtcStart();
+
   const totalClasses = await db.class.count();
   const activeBookings = await db.booking.count({
-    where: { user: { email: userEmail } },
+    where: {
+      user: { email: userEmail },
+      status: "CONFIRMED",
+      date: { gte: todayUtcStart },
+    },
   });
 
   return (
@@ -77,15 +92,10 @@ export default async function TurnosPage() {
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 backdrop-blur-xl shadow-xl">
-              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                Reservas activas
-              </p>
-              <p className="text-4xl font-extrabold tracking-tight text-amber-400 mt-3">
-                {activeBookings}
-              </p>
-            </div>
+            <ActiveBookingsCard initialCount={activeBookings} />
           </div>
+
+          <ClassSelector />
 
           <section className="rounded-2xl bg-zinc-900/40 border border-zinc-900 p-8 backdrop-blur-xl">
             <h3 className="text-xl font-bold text-white mb-4">Tus turnos</h3>

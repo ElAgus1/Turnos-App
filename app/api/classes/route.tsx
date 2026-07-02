@@ -28,6 +28,7 @@ const classSchema = z.object({
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const dayOfWeekParam = searchParams.get("dayOfWeek");
+  const dateParam = searchParams.get("date");
 
   const whereClause: any = {};
   if (dayOfWeekParam !== null) {
@@ -46,7 +47,43 @@ export async function GET(request: Request) {
       orderBy: { startTime: "asc" },
     });
 
-    return NextResponse.json({ classes });
+    if (!dateParam) {
+      return NextResponse.json({ classes });
+    }
+
+    const selectedDate = new Date(`${dateParam}T00:00:00.000Z`);
+    if (Number.isNaN(selectedDate.getTime())) {
+      return NextResponse.json({ error: "Fecha inválida" }, { status: 400 });
+    }
+
+    const bookingCounts = await db.booking.groupBy({
+      by: ["classId"],
+      where: {
+        classId: { in: classes.map((classItem) => classItem.id) },
+        date: selectedDate,
+        status: { not: "CANCELLED" },
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    const bookingsByClassId = new Map(
+      bookingCounts.map((entry) => [entry.classId, entry._count.id]),
+    );
+
+    const classesWithAvailability = classes.map((classItem) => {
+      const bookedSpots = bookingsByClassId.get(classItem.id) ?? 0;
+      const availableSpots = Math.max(classItem.capacity - bookedSpots, 0);
+
+      return {
+        ...classItem,
+        bookedSpots,
+        availableSpots,
+      };
+    });
+
+    return NextResponse.json({ classes: classesWithAvailability });
   } catch (error) {
     return NextResponse.json(
       { error: "Error al obtener las clases" },

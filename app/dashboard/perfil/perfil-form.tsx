@@ -43,6 +43,11 @@ export default function PerfilForm({
   };
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name.trim() || !phone.trim()) {
+      setError("Debes completar todos los campos obligatorios.");
+      setSuccess(null);
+      return;
+    }
     setError(null);
     setSuccess(null);
     setSaving(true);
@@ -127,7 +132,7 @@ export default function PerfilForm({
           <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">
             Correo Electrónico{" "}
             <span className="text-[10px] text-zinc-600 font-normal">
-              (Gestionado por Admin)
+              (Gestionado por Administrador)
             </span>
           </label>
           <input

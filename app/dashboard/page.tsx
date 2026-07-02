@@ -3,6 +3,14 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import Sidebar from "./sidebar"; // Importamos tu nuevo Sidebar
+import { AttendanceHistory } from "@/components/attendance-history";
+
+function getTodayUtcStart() {
+  const now = new Date();
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+}
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -14,12 +22,19 @@ export default async function DashboardPage() {
   const userEmail = session.user?.email || "";
   const userName = session.user?.name || "Usuario";
   const userRole = session.user?.role || "CLIENT";
+  const todayUtcStart = getTodayUtcStart();
 
   // Consultas dinámicas a Neon usando Prisma
   const totalActivities = await db.activity.count();
   const totalClasses = await db.class.count();
   const userBookingsCount = await db.booking.count({
-    where: { user: { email: userEmail } },
+    where: {
+      userId: session.user.id,
+      status: "CONFIRMED",
+      date: {
+        gte: todayUtcStart,
+      },
+    },
   });
 
   return (
@@ -114,11 +129,7 @@ export default async function DashboardPage() {
               usando un mapeo directo de tu base de datos relacional.
             </p>
 
-            <div className="mt-6 flex justify-center gap-4">
-              <button className="px-5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-850 text-white font-semibold text-sm border border-zinc-800 transition-all">
-                Ver Historial de Asistencia
-              </button>
-            </div>
+            <AttendanceHistory />
           </div>
         </main>
       </div>

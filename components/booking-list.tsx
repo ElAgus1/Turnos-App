@@ -17,6 +17,7 @@ interface Booking {
 export function BookingList() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const fetchBookings = async () => {
     try {
@@ -32,13 +33,24 @@ export function BookingList() {
 
   useEffect(() => {
     fetchBookings();
+
+    const handleBookingUpdate = () => {
+      fetchBookings();
+    };
+
+    window.addEventListener("booking:updated", handleBookingUpdate);
+
+    return () => {
+      window.removeEventListener("booking:updated", handleBookingUpdate);
+    };
   }, []);
 
   const handleCancel = async (bookingId: string) => {
     if (!confirm("¿Estás seguro de que querés cancelar este turno?")) return;
 
+    setCancellingId(bookingId);
+
     try {
-      // Nota: Aquí disparamos la cancelación. Podés adaptarlo si usás DELETE o PATCH.
       const res = await fetch(`/api/bookings/${bookingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -46,14 +58,15 @@ export function BookingList() {
       });
 
       if (res.ok) {
-        alert("Reserva cancelada con éxito");
-        fetchBookings(); // Recargamos la lista
+        window.dispatchEvent(new Event("booking:updated"));
       } else {
         const errorData = await res.json();
         alert(errorData.error || "No se pudo cancelar");
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -95,14 +108,13 @@ export function BookingList() {
             </p>
           </div>
 
-          {booking.status !== "CANCELLED" && (
-            <button
-              onClick={() => handleCancel(booking.id)}
-              className="mt-4 w-full bg-red-50 text-red-600 hover:bg-red-100 py-2 rounded-lg font-medium transition"
-            >
-              Cancelar Reserva
-            </button>
-          )}
+          <button
+            onClick={() => handleCancel(booking.id)}
+            disabled={cancellingId === booking.id}
+            className="mt-4 w-full bg-red-50 text-red-600 hover:bg-red-100 py-2 rounded-lg font-medium transition"
+          >
+            {cancellingId === booking.id ? "Cancelando..." : "Cancelar Reserva"}
+          </button>
         </div>
       ))}
     </div>

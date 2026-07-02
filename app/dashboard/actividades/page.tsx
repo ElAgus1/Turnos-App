@@ -22,6 +22,7 @@ interface Trainer {
 
 export default function ActividadesPage() {
   const { data: session } = useSession();
+  const isAdmin = session?.user?.role === "ADMIN";
   const [activities, setActivities] = useState<Activity[]>([]);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [loading, setLoading] = useState(false);
@@ -39,7 +40,11 @@ export default function ActividadesPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  if (session?.user?.role !== "ADMIN") {
+  if (
+    session &&
+    session.user?.role !== "ADMIN" &&
+    session.user?.role !== "CLIENT"
+  ) {
     redirect("/dashboard");
   }
 
@@ -77,8 +82,71 @@ export default function ActividadesPage() {
 
   useEffect(() => {
     fetchActivities();
-    fetchTrainers();
+    if (isAdmin) {
+      fetchTrainers();
+    }
   }, []);
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-white font-sans flex flex-row relative overflow-hidden">
+        <Sidebar
+          userName={session?.user?.name || "Usuario"}
+          userEmail={session?.user?.email || ""}
+          userRole={session?.user?.role || "CLIENT"}
+        />
+
+        <div className="flex-1 min-h-screen overflow-y-auto">
+          <div className="absolute top-0 right-1/4 w-[400px] h-[400px] bg-amber-400/5 rounded-full blur-[150px] pointer-events-none" />
+
+          <main className="max-w-6xl mx-auto px-6 sm:px-8 py-10 space-y-8">
+            <div className="border-b border-zinc-900 pb-6">
+              <h1 className="text-3xl font-bold tracking-tight text-white">
+                Catalogo de Actividades
+              </h1>
+              <p className="text-sm text-zinc-400 mt-1">
+                Conoce las disciplinas disponibles en el gimnasio.
+              </p>
+            </div>
+
+            {error && (
+              <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
+                {error}
+              </div>
+            )}
+
+            {activities.length === 0 ? (
+              <div className="p-6 rounded-lg text-center text-zinc-400 bg-zinc-900/60 border border-zinc-800">
+                No hay actividades cargadas por el momento.
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {activities.map((activity) => (
+                  <article
+                    key={activity.id}
+                    className="p-6 rounded-xl bg-zinc-900/60 border border-zinc-800 backdrop-blur-xl"
+                  >
+                    <h2 className="text-lg font-semibold text-white">
+                      {activity.name}
+                    </h2>
+                    <p className="text-sm text-zinc-400 mt-2 min-h-10">
+                      {activity.description ||
+                        "Sin descripcion disponible por el momento."}
+                    </p>
+                    {activity.trainer?.name && (
+                      <p className="text-sm text-amber-400 mt-3">
+                        Profesor: {activity.trainer.name}
+                      </p>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

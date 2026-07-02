@@ -13,6 +13,13 @@ const bodySchema = z.object({
     .refine((value) => !Number.isNaN(Date.parse(value)), "Fecha inválida"),
 });
 
+function getTodayUtcStart() {
+  const now = new Date();
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+}
+
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
 
@@ -20,8 +27,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
+  const todayUtcStart = getTodayUtcStart();
+
   const bookings = await db.booking.findMany({
-    where: { userId: session.user.id },
+    where: {
+      userId: session.user.id,
+      status: "CONFIRMED",
+      date: {
+        gte: todayUtcStart,
+      },
+    },
     orderBy: { date: "asc" },
     include: {
       class: {
@@ -61,6 +76,25 @@ export async function POST(request: Request) {
   const { classId, date } = parsed.data;
   const bookingDate = new Date(date);
 
+  const existingBooking = await db.booking.findFirst({
+    where: {
+      classId,
+      userId: session.user.id,
+      date: bookingDate,
+    },
+    select: {
+      id: true,
+      status: true,
+    },
+  });
+
+  if (existingBooking && existingBooking.status !== "CANCELLED") {
+    return NextResponse.json(
+      { error: "Ya tenés una reserva para esta clase en esta fecha" },
+      { status: 400 },
+    );
+  }
+
   const classItem = await db.class.findUnique({
     where: { id: classId },
     select: { capacity: true },
@@ -74,12 +108,21 @@ export async function POST(request: Request) {
     where: {
       classId,
       date: bookingDate,
-      status: { not: "CANCELLED" },
+      status: "CONFIRMED",
     },
   });
 
   if (activeBookings >= classItem.capacity) {
     return NextResponse.json({ error: "Clase llena" }, { status: 400 });
+  }
+
+  if (existingBooking && existingBooking.status === "CANCELLED") {
+    const booking = await db.booking.update({
+      where: { id: existingBooking.id },
+      data: { status: "CONFIRMED" },
+    });
+
+    return NextResponse.json({ booking }, { status: 200 });
   }
 
   try {
@@ -99,7 +142,7 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json(
         {
-          error: "Ya tenés una reserva para esta clase en esta fecha",
+          error: "Ya existe una reserva para esta clase y fecha",
         },
         { status: 400 },
       );
