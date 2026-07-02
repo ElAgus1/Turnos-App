@@ -1,10 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 interface Item {
   id: string;
   name: string;
+}
+
+const WEEKDAY_NAMES = [
+  "Domingo",
+  "Lunes",
+  "Martes",
+  "Miercoles",
+  "Jueves",
+  "Viernes",
+  "Sabado",
+];
+
+function toDateOnlyString(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function AdminClassForm({
@@ -15,29 +33,59 @@ export function AdminClassForm({
   const [activities, setActivities] = useState<Item[]>([]);
   const [trainers, setTrainers] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
+  const [setupError, setSetupError] = useState<string | null>(null);
 
   // Campos del formulario
   const [activityId, setActivityId] = useState("");
   const [trainerId, setTrainerId] = useState("");
-  const [dayOfWeek, setDayOfWeek] = useState(1); // Lunes por defecto
+  const [referenceDate, setReferenceDate] = useState(
+    toDateOnlyString(new Date()),
+  );
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("09:00");
   const [capacity, setCapacity] = useState(20);
   const [submitting, setSubmitting] = useState(false);
+  const hasSetupData = activities.length > 0 && trainers.length > 0;
+
+  const parsedReferenceDate = new Date(`${referenceDate}T00:00:00`);
+  const dayOfWeek = Number.isNaN(parsedReferenceDate.getTime())
+    ? 1
+    : parsedReferenceDate.getDay();
 
   useEffect(() => {
     async function loadData() {
       try {
-        const res = await fetch("/api/admin/setup-data");
-        if (res.ok) {
-          const data = await res.json();
-          setActivities(data.activities);
-          setTrainers(data.trainers);
-          if (data.activities.length > 0) setActivityId(data.activities[0].id);
-          if (data.trainers.length > 0) setTrainerId(data.trainers[0].id);
+        const res = await fetch("/api/admin/class-form-data");
+        const contentType = res.headers.get("content-type") || "";
+
+        if (!contentType.includes("application/json")) {
+          const bodyText = await res.text();
+          throw new Error(
+            bodyText.includes("<!DOCTYPE")
+              ? "El servidor devolvio HTML en lugar de JSON. Reinicia `npm run dev` y proba de nuevo."
+              : "Respuesta invalida del servidor.",
+          );
         }
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(
+            data.error || "No se pudieron cargar actividades y profesores.",
+          );
+        }
+
+        setActivities(data.activities || []);
+        setTrainers(data.trainers || []);
+        if (data.activities?.length > 0) setActivityId(data.activities[0].id);
+        if (data.trainers?.length > 0) setTrainerId(data.trainers[0].id);
       } catch (err) {
         console.error("Error cargando datos de configuración:", err);
+        setSetupError(
+          err instanceof Error
+            ? err.message
+            : "Error cargando datos de configuracion.",
+        );
       } finally {
         setLoading(false);
       }
@@ -47,6 +95,12 @@ export function AdminClassForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!hasSetupData) {
+      alert("Necesitas al menos una actividad y un profesor para crear clases.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -57,6 +111,7 @@ export function AdminClassForm({
           activityId,
           trainerId,
           dayOfWeek: Number(dayOfWeek),
+          classDate: referenceDate,
           startTime,
           endTime,
           capacity: Number(capacity),
@@ -92,6 +147,28 @@ export function AdminClassForm({
     >
       <h2 className="text-xl font-bold text-white">Programar Nueva Clase</h2>
 
+      {setupError && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {setupError}
+        </div>
+      )}
+
+      {activities.length === 0 && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+          No hay actividades cargadas. Crea una primero en{" "}
+          <Link href="/dashboard/actividades" className="underline font-semibold">
+            Administrar Actividades
+          </Link>
+          .
+        </div>
+      )}
+
+      {trainers.length === 0 && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+          No hay profesores con rol TRAINER disponibles para asignar.
+        </div>
+      )}
+
       <div>
         <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
           Actividad
@@ -99,9 +176,13 @@ export function AdminClassForm({
         <select
           value={activityId}
           onChange={(e) => setActivityId(e.target.value)}
+          disabled={activities.length === 0}
           className="w-full p-2.5 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-colors"
           required
         >
+          {activities.length === 0 && (
+            <option value="">Sin actividades disponibles</option>
+          )}
           {activities.map((act) => (
             <option key={act.id} value={act.id}>
               {act.name}
@@ -117,9 +198,13 @@ export function AdminClassForm({
         <select
           value={trainerId}
           onChange={(e) => setTrainerId(e.target.value)}
+          disabled={trainers.length === 0}
           className="w-full p-2.5 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-colors"
           required
         >
+          {trainers.length === 0 && (
+            <option value="">Sin profesores disponibles</option>
+          )}
           {trainers.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
@@ -130,21 +215,18 @@ export function AdminClassForm({
 
       <div>
         <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
-          Día de la semana
+          Fecha de referencia
         </label>
-        <select
-          value={dayOfWeek}
-          onChange={(e) => setDayOfWeek(Number(e.target.value))}
+        <input
+          type="date"
+          value={referenceDate}
+          onChange={(e) => setReferenceDate(e.target.value)}
           className="w-full p-2.5 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-colors"
-        >
-          <option value={1}>Lunes</option>
-          <option value={2}>Martes</option>
-          <option value={3}>Miércoles</option>
-          <option value={4}>Jueves</option>
-          <option value={5}>Viernes</option>
-          <option value={6}>Sábado</option>
-          <option value={0}>Domingo</option>
-        </select>
+          required
+        />
+        <p className="mt-2 text-xs text-zinc-500">
+          Se guardara en la grilla semanal para: {WEEKDAY_NAMES[dayOfWeek]}.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -190,7 +272,7 @@ export function AdminClassForm({
 
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || !hasSetupData}
         className="w-full px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-sm shadow-md shadow-amber-400/10 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {submitting ? "Guardando..." : "Crear Clase"}

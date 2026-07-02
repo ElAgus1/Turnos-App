@@ -9,6 +9,7 @@ const classSchema = z.object({
   activityId: z.string().min(1, "La actividad es requerida"),
   trainerId: z.string().min(1, "El entrenador es requerido"),
   dayOfWeek: z.number().min(0).max(6), // 0=Domingo, 1=Lunes...
+  classDate: z.string().optional(),
   startTime: z
     .string()
     .regex(
@@ -31,7 +32,32 @@ export async function GET(request: Request) {
   const dateParam = searchParams.get("date");
 
   const whereClause: any = {};
-  if (dayOfWeekParam !== null) {
+
+  if (dateParam) {
+    const selectedDate = new Date(`${dateParam}T00:00:00.000Z`);
+    if (Number.isNaN(selectedDate.getTime())) {
+      return NextResponse.json({ error: "Fecha inválida" }, { status: 400 });
+    }
+
+    const nextDate = new Date(selectedDate);
+    nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+
+    whereClause.OR = [
+      {
+        classDate: {
+          gte: selectedDate,
+          lt: nextDate,
+        },
+      },
+      {
+        classDate: null,
+        dayOfWeek:
+          dayOfWeekParam !== null
+            ? parseInt(dayOfWeekParam, 10)
+            : selectedDate.getUTCDay(),
+      },
+    ];
+  } else if (dayOfWeekParam !== null) {
     whereClause.dayOfWeek = parseInt(dayOfWeekParam, 10);
   }
 
@@ -44,7 +70,7 @@ export async function GET(request: Request) {
           select: { id: true, name: true, email: true },
         },
       },
-      orderBy: { startTime: "asc" },
+      orderBy: [{ classDate: "asc" }, { startTime: "asc" }],
     });
 
     if (!dateParam) {
@@ -85,8 +111,15 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ classes: classesWithAvailability });
   } catch (error) {
+    console.error("Error al obtener clases:", error);
     return NextResponse.json(
-      { error: "Error al obtener las clases" },
+      {
+        error: "Error al obtener las clases",
+        details:
+          process.env.NODE_ENV !== "production" && error instanceof Error
+            ? error.message
+            : undefined,
+      },
       { status: 500 },
     );
   }
@@ -115,15 +148,30 @@ export async function POST(request: Request) {
       );
     }
 
-    const { activityId, trainerId, dayOfWeek, startTime, endTime, capacity } =
+    const { activityId, trainerId, dayOfWeek, classDate, startTime, endTime, capacity } =
       parsed.data;
+
+    let parsedClassDate: Date | null = null;
+    let resolvedDayOfWeek = dayOfWeek;
+
+    if (classDate) {
+      parsedClassDate = new Date(`${classDate}T00:00:00.000Z`);
+      if (Number.isNaN(parsedClassDate.getTime())) {
+        return NextResponse.json(
+          { error: "Fecha de clase inválida" },
+          { status: 400 },
+        );
+      }
+      resolvedDayOfWeek = parsedClassDate.getUTCDay();
+    }
 
     // Crear la clase en la base de datos
     const newClass = await db.class.create({
       data: {
         activityId,
         trainerId,
-        dayOfWeek,
+        dayOfWeek: resolvedDayOfWeek,
+        classDate: parsedClassDate,
         startTime,
         endTime,
         capacity,
@@ -173,8 +221,22 @@ export async function PUT(request: Request) {
       );
     }
 
-    const { activityId, trainerId, dayOfWeek, startTime, endTime, capacity } =
+    const { activityId, trainerId, dayOfWeek, classDate, startTime, endTime, capacity } =
       parsed.data;
+
+    let parsedClassDate: Date | null = null;
+    let resolvedDayOfWeek = dayOfWeek;
+
+    if (classDate) {
+      parsedClassDate = new Date(`${classDate}T00:00:00.000Z`);
+      if (Number.isNaN(parsedClassDate.getTime())) {
+        return NextResponse.json(
+          { error: "Fecha de clase inválida" },
+          { status: 400 },
+        );
+      }
+      resolvedDayOfWeek = parsedClassDate.getUTCDay();
+    }
 
     // Verificar que la clase existe
     const existingClass = await db.class.findUnique({
@@ -194,7 +256,8 @@ export async function PUT(request: Request) {
       data: {
         activityId,
         trainerId,
-        dayOfWeek,
+        dayOfWeek: resolvedDayOfWeek,
+        classDate: parsedClassDate,
         startTime,
         endTime,
         capacity,

@@ -63,7 +63,7 @@ export default function ActividadesPage() {
 
   const fetchTrainers = async () => {
     try {
-      const res = await fetch("/api/admin/setup-data");
+      const res = await fetch("/api/admin/class-form-data");
       if (res.ok) {
         const data = await res.json();
         setTrainers(data.trainers || []);

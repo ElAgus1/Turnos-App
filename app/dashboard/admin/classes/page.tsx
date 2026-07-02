@@ -9,6 +9,7 @@ import { AdminClassForm } from "@/components/admin-class-form";
 interface ClassItem {
   id: string;
   dayOfWeek: number;
+  classDate: string | null;
   startTime: string;
   endTime: string;
   capacity: number;
@@ -38,6 +39,44 @@ const DAYS = [
   "Sábado",
 ];
 
+function getDateKey(date: Date) {
+  const year = date.getUTCFullYear();
+  const month = `${date.getUTCMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getUTCDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function toDateInputValue(date: Date) {
+  const year = date.getUTCFullYear();
+  const month = `${date.getUTCMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getUTCDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getAnchorDateForClass(cls: ClassItem) {
+  if (cls.classDate) {
+    return new Date(cls.classDate);
+  }
+
+  const now = new Date();
+  const todayUtc = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  const daysUntilTarget = (cls.dayOfWeek - todayUtc.getUTCDay() + 7) % 7;
+  todayUtc.setUTCDate(todayUtc.getUTCDate() + daysUntilTarget);
+
+  return todayUtc;
+}
+
+function formatDateLabel(date: Date) {
+  return date.toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export default function AdminClassesPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -51,6 +90,7 @@ export default function AdminClassesPage() {
     activityId: "",
     trainerId: "",
     dayOfWeek: 1,
+    classDate: "",
     startTime: "",
     endTime: "",
     capacity: 20,
@@ -77,7 +117,7 @@ export default function AdminClassesPage() {
 
   const fetchActivitiesAndTrainers = async () => {
     try {
-      const res = await fetch("/api/admin/setup-data");
+      const res = await fetch("/api/admin/class-form-data");
       if (res.ok) {
         const data = await res.json();
         setActivities(data.activities || []);
@@ -94,6 +134,7 @@ export default function AdminClassesPage() {
       activityId: cls.activityId,
       trainerId: cls.trainerId,
       dayOfWeek: cls.dayOfWeek,
+      classDate: cls.classDate ? toDateInputValue(new Date(cls.classDate)) : "",
       startTime: cls.startTime,
       endTime: cls.endTime,
       capacity: cls.capacity,
@@ -239,26 +280,25 @@ export default function AdminClassesPage() {
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
-                  Día de la semana
+                  Fecha exacta
                 </label>
-                <select
-                  value={editData.dayOfWeek}
-                  onChange={(e) =>
+                <input
+                  type="date"
+                  value={editData.classDate}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const parsedDate = new Date(`${value}T00:00:00.000Z`);
+
                     setEditData({
                       ...editData,
-                      dayOfWeek: Number(e.target.value),
-                    })
-                  }
+                      classDate: value,
+                      dayOfWeek: Number.isNaN(parsedDate.getTime())
+                        ? editData.dayOfWeek
+                        : parsedDate.getUTCDay(),
+                    });
+                  }}
                   className="w-full p-2.5 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-colors"
-                >
-                  <option value={0}>Domingo</option>
-                  <option value={1}>Lunes</option>
-                  <option value={2}>Martes</option>
-                  <option value={3}>Miércoles</option>
-                  <option value={4}>Jueves</option>
-                  <option value={5}>Viernes</option>
-                  <option value={6}>Sábado</option>
-                </select>
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -349,62 +389,81 @@ export default function AdminClassesPage() {
             </p>
           ) : (
             <div className="space-y-4">
-              {DAYS.map((dayName, index) => {
-                const dayClasses = classes.filter((c) => c.dayOfWeek === index);
-                if (dayClasses.length === 0) return null;
+              {Array.from(
+                classes.reduce((acc, cls) => {
+                  const anchorDate = getAnchorDateForClass(cls);
+                  const key = getDateKey(anchorDate);
 
-                return (
+                  if (!acc.has(key)) {
+                    acc.set(key, {
+                      date: anchorDate,
+                      classes: [],
+                    });
+                  }
+
+                  acc.get(key)!.classes.push(cls);
+                  return acc;
+                }, new Map<string, { date: Date; classes: ClassItem[] }>()),
+              )
+                .map(([, value]) => value)
+                .sort((a, b) => a.date.getTime() - b.date.getTime())
+                .map((group) => (
                   <div
-                    key={index}
+                    key={getDateKey(group.date)}
                     className="border border-zinc-800 rounded-xl p-4 bg-zinc-900/60 backdrop-blur-xl"
                   >
-                    <h3 className="font-bold text-lg text-amber-400 border-b border-zinc-800 pb-1 mb-2">
-                      {dayName}
+                    <h3 className="font-bold text-lg text-amber-400 border-b border-zinc-800 pb-1 mb-2 flex items-center justify-between gap-3">
+                      <span>{DAYS[group.date.getUTCDay()]}</span>
+                      <span className="text-xs font-semibold text-zinc-400">
+                        {formatDateLabel(group.date)}
+                      </span>
                     </h3>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      {dayClasses.map((cls) => (
-                        <div
-                          key={cls.id}
-                          className="bg-zinc-950/80 p-3 rounded-lg border border-zinc-800 shadow-lg relative"
-                        >
-                          <div className="absolute top-2 right-2 flex gap-1">
-                            <button
-                              onClick={() => handleEditClass(cls)}
-                              disabled={loading}
-                              className="p-1 text-amber-400 hover:text-amber-300 hover:bg-amber-400/10 rounded transition-colors disabled:opacity-50"
-                              title="Editar clase"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteClass(cls.id)}
-                              disabled={loading}
-                              className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50"
-                              title="Eliminar clase"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                      {group.classes
+                        .slice()
+                        .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                        .map((cls) => (
+                          <div
+                            key={cls.id}
+                            className="bg-zinc-950/80 p-3 rounded-lg border border-zinc-800 shadow-lg relative"
+                          >
+                            <div className="absolute top-2 right-2 flex gap-1">
+                              <button
+                                onClick={() => handleEditClass(cls)}
+                                disabled={loading}
+                                className="p-1 text-amber-400 hover:text-amber-300 hover:bg-amber-400/10 rounded transition-colors disabled:opacity-50"
+                                title="Editar clase"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClass(cls.id)}
+                                disabled={loading}
+                                className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50"
+                                title="Eliminar clase"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                            <h4 className="font-bold text-white pr-8">
+                              {cls.activity.name}
+                            </h4>
+                            <p className="text-xs text-zinc-400">
+                              Profe: {cls.trainer.name}
+                            </p>
+                            <div className="flex justify-between items-center mt-2 text-xs font-semibold text-zinc-400">
+                              <span>
+                                ⏰ {cls.startTime} - {cls.endTime} hs
+                              </span>
+                              <span className="bg-amber-400/20 text-amber-400 px-2 py-0.5 rounded border border-amber-400/30">
+                                Cupos: {cls.capacity}
+                              </span>
+                            </div>
                           </div>
-                          <h4 className="font-bold text-white pr-8">
-                            {cls.activity.name}
-                          </h4>
-                          <p className="text-xs text-zinc-400">
-                            Profe: {cls.trainer.name}
-                          </p>
-                          <div className="flex justify-between items-center mt-2 text-xs font-semibold text-zinc-400">
-                            <span>
-                              ⏰ {cls.startTime} - {cls.endTime} hs
-                            </span>
-                            <span className="bg-amber-400/20 text-amber-400 px-2 py-0.5 rounded border border-amber-400/30">
-                              Cupos: {cls.capacity}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   </div>
-                );
-              })}
+                ))}
             </div>
           )}
         </div>

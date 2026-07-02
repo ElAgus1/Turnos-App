@@ -34,6 +34,17 @@ function buildNextSevenDays() {
   });
 }
 
+function buildSevenDaysFrom(baseDate: Date) {
+  const start = new Date(baseDate);
+  start.setHours(0, 0, 0, 0);
+
+  return Array.from({ length: 7 }).map((_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return date;
+  });
+}
+
 function toDateOnlyString(date: Date) {
   const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, "0");
@@ -42,14 +53,19 @@ function toDateOnlyString(date: Date) {
 }
 
 export function ClassSelector() {
-  const days = useMemo(buildNextSevenDays, []);
-  const [selectedDate, setSelectedDate] = useState<Date>(days[0]);
+  const initialDays = useMemo(buildNextSevenDays, []);
+  const [windowStartDate, setWindowStartDate] = useState<Date>(initialDays[0]);
+  const [selectedDate, setSelectedDate] = useState<Date>(initialDays[0]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [bookingClassId, setBookingClassId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const days = useMemo(
+    () => buildSevenDaysFrom(windowStartDate),
+    [windowStartDate],
+  );
 
   const selectedDayOfWeek = selectedDate.getDay();
 
@@ -132,8 +148,57 @@ export function ClassSelector() {
       <div>
         <h3 className="text-xl font-bold text-white">Reservar turno</h3>
         <p className="text-sm text-zinc-400 mt-1">
-          Elegi un dia y anotate en la disciplina que prefieras.
+          Elegi una fecha exacta y anotate en la disciplina que prefieras.
         </p>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
+            Fecha exacta
+          </label>
+          <input
+            type="date"
+            value={toDateOnlyString(selectedDate)}
+            onChange={(e) => {
+              if (!e.target.value) return;
+
+              const pickedDate = new Date(`${e.target.value}T00:00:00`);
+              pickedDate.setHours(0, 0, 0, 0);
+
+              setSelectedDate(pickedDate);
+              setWindowStartDate(pickedDate);
+              setSuccess(null);
+              setError(null);
+            }}
+            className="w-full sm:w-[220px] rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-200 focus:border-amber-400 focus:outline-none"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const prevWeek = new Date(windowStartDate);
+              prevWeek.setDate(prevWeek.getDate() - 7);
+              setWindowStartDate(prevWeek);
+            }}
+            className="rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-semibold text-zinc-300 hover:border-zinc-700"
+          >
+            Semana anterior
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const nextWeek = new Date(windowStartDate);
+              nextWeek.setDate(nextWeek.getDate() + 7);
+              setWindowStartDate(nextWeek);
+            }}
+            className="rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-semibold text-zinc-300 hover:border-zinc-700"
+          >
+            Semana siguiente
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-3 overflow-x-auto pb-1">
@@ -184,35 +249,39 @@ export function ClassSelector() {
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {classes.map((classItem) => {
-            const isBooking = bookingClassId === classItem.id;
-            const availableSpots =
-              classItem.availableSpots ?? classItem.capacity;
+          {classes.map((cls) => {
+            const isBooking = bookingClassId === cls.id;
+            const availableSpots = cls.availableSpots ?? cls.capacity;
             const isFull = availableSpots <= 0;
 
             return (
               <article
-                key={classItem.id}
+                key={cls.id}
                 className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-5"
               >
-                <div className="space-y-1">
-                  <h4 className="text-lg font-semibold text-white">
-                    {classItem.activity.name}
+                <div className="space-y-3">
+                  <h4 className="text-xl font-extrabold uppercase tracking-wide text-white">
+                    {cls.activity.name}
                   </h4>
-                  {classItem.activity.description && (
+
+                  {cls.activity.description && (
                     <p className="text-sm text-zinc-400">
-                      {classItem.activity.description}
+                      {cls.activity.description}
                     </p>
                   )}
-                  <p className="text-sm text-zinc-300">
-                    Profesor: {classItem.trainer.name}
-                  </p>
-                  <p className="text-sm text-zinc-300">
-                    Horario: {classItem.startTime} - {classItem.endTime}
-                  </p>
-                  <p className="text-sm text-zinc-400">
-                    Capacidad: {classItem.capacity}
-                  </p>
+
+                  <div className="space-y-1.5 border-t border-zinc-800/80 pt-3">
+                    <p className="text-sm text-zinc-500">
+                      Horario: {cls.startTime} - {cls.endTime}
+                    </p>
+                    <p className="text-sm text-zinc-600">
+                      Profesor: {cls.trainer.name}
+                    </p>
+                    <p className="text-sm text-zinc-500">
+                      Capacidad: {cls.capacity}
+                    </p>
+                  </div>
+
                   <p
                     className={`text-sm ${
                       isFull ? "text-red-400" : "text-emerald-400"
@@ -224,7 +293,7 @@ export function ClassSelector() {
 
                 <button
                   type="button"
-                  onClick={() => reserveClass(classItem.id)}
+                  onClick={() => reserveClass(cls.id)}
                   disabled={isBooking || isFull}
                   className="mt-4 inline-flex items-center justify-center rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
                 >

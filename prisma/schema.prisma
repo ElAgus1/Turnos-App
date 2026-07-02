@@ -54,6 +54,7 @@ model Class {
   activityId String
   trainerId  String
   dayOfWeek  Int
+  classDate  DateTime?
   startTime  String
   endTime    String
   capacity   Int
