@@ -41,6 +41,9 @@ export function AdminClassForm({
   const [referenceDate, setReferenceDate] = useState(
     toDateOnlyString(new Date()),
   );
+  const [recurrenceOption, setRecurrenceOption] = useState<
+    "none" | "1" | "2" | "3"
+  >("none");
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("09:00");
   const [capacity, setCapacity] = useState(20);
@@ -114,6 +117,8 @@ export function AdminClassForm({
           trainerId,
           dayOfWeek: Number(dayOfWeek),
           classDate: referenceDate,
+          recurrenceIntervalWeeks:
+            recurrenceOption === "none" ? null : Number(recurrenceOption),
           startTime,
           endTime,
           capacity: Number(capacity),
@@ -220,7 +225,7 @@ export function AdminClassForm({
 
       <div>
         <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
-          Fecha de referencia
+          Fecha de clase
         </label>
         <input
           type="date"
@@ -230,8 +235,27 @@ export function AdminClassForm({
           required
         />
         <p className="mt-2 text-xs text-zinc-500">
-          Se guardara en la grilla semanal para: {WEEKDAY_NAMES[dayOfWeek]}.
+          La clase se programara para el dia exacto seleccionado (
+          {WEEKDAY_NAMES[dayOfWeek]}).
         </p>
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
+          Repetición
+        </label>
+        <select
+          value={recurrenceOption}
+          onChange={(e) =>
+            setRecurrenceOption(e.target.value as "none" | "1" | "2" | "3")
+          }
+          className="w-full p-2.5 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-colors"
+        >
+          <option value="none">Solo esta fecha</option>
+          <option value="1">Todas las semanas</option>
+          <option value="2">Cada 2 semanas</option>
+          <option value="3">Cada 3 semanas</option>
+        </select>
       </div>
 
       <div className="grid grid-cols-2 gap-4">

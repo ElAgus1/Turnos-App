@@ -9,7 +9,11 @@ const classSchema = z.object({
   activityId: z.string().min(1, "La actividad es requerida"),
   trainerId: z.string().min(1, "El entrenador es requerido"),
   dayOfWeek: z.number().min(0).max(6), // 0=Domingo, 1=Lunes...
-  classDate: z.string().optional(),
+  classDate: z.string().min(1, "La fecha de clase es requerida"),
+  recurrenceIntervalWeeks: z
+    .union([z.literal(1), z.literal(2), z.literal(3)])
+    .nullable()
+    .optional(),
   startTime: z
     .string()
     .regex(
@@ -25,38 +29,64 @@ const classSchema = z.object({
   capacity: z.number().min(1, "La capacidad debe ser al menos 1"),
 });
 
+const MS_IN_DAY = 24 * 60 * 60 * 1000;
+
+function toUtcDateStart(dateValue: Date | string) {
+  const date =
+    typeof dateValue === "string" ? new Date(dateValue) : new Date(dateValue);
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+}
+
+function isClassScheduledForDate(
+  classDate: Date,
+  recurrenceIntervalWeeks: number | null,
+  selectedDate: Date,
+) {
+  const classStart = toUtcDateStart(classDate);
+
+  if (selectedDate.getTime() < classStart.getTime()) {
+    return false;
+  }
+
+  if (recurrenceIntervalWeeks == null) {
+    return selectedDate.getTime() === classStart.getTime();
+  }
+
+  const diffMs = selectedDate.getTime() - classStart.getTime();
+  const diffDays = Math.floor(diffMs / MS_IN_DAY);
+
+  if (diffDays % 7 !== 0) {
+    return false;
+  }
+
+  const diffWeeks = diffDays / 7;
+  return diffWeeks % recurrenceIntervalWeeks === 0;
+}
+
 // GET: Listar todas las clases o filtrar por día de la semana
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const dayOfWeekParam = searchParams.get("dayOfWeek");
   const dateParam = searchParams.get("date");
+  const classIdParam = searchParams.get("id");
 
-  const whereClause: any = {};
+  const whereClause: Record<string, unknown> = {};
+
+  if (classIdParam) {
+    whereClause.id = classIdParam;
+  }
 
   if (dateParam) {
     const selectedDate = new Date(`${dateParam}T00:00:00.000Z`);
     if (Number.isNaN(selectedDate.getTime())) {
       return NextResponse.json({ error: "Fecha inválida" }, { status: 400 });
     }
-
-    const nextDate = new Date(selectedDate);
-    nextDate.setUTCDate(nextDate.getUTCDate() + 1);
-
-    whereClause.OR = [
-      {
-        classDate: {
-          gte: selectedDate,
-          lt: nextDate,
-        },
-      },
-      {
-        classDate: null,
-        dayOfWeek:
-          dayOfWeekParam !== null
-            ? parseInt(dayOfWeekParam, 10)
-            : selectedDate.getUTCDay(),
-      },
-    ];
+    whereClause.classDate = {
+      not: null,
+      lte: selectedDate,
+    };
   } else if (dayOfWeekParam !== null) {
     whereClause.dayOfWeek = parseInt(dayOfWeekParam, 10);
   }
@@ -82,10 +112,22 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Fecha inválida" }, { status: 400 });
     }
 
+    const classesForSelectedDate = classes.filter((classItem) =>
+      classItem.classDate
+        ? isClassScheduledForDate(
+            classItem.classDate,
+            classItem.recurrenceIntervalWeeks,
+            selectedDate,
+          )
+        : false,
+    );
+
     const bookingCounts = await db.booking.groupBy({
       by: ["classId"],
       where: {
-        classId: { in: classes.map((classItem) => classItem.id) },
+        classId: {
+          in: classesForSelectedDate.map((classItem) => classItem.id),
+        },
         date: selectedDate,
         status: { not: "CANCELLED" },
       },
@@ -98,7 +140,7 @@ export async function GET(request: Request) {
       bookingCounts.map((entry) => [entry.classId, entry._count.id]),
     );
 
-    const classesWithAvailability = classes.map((classItem) => {
+    const classesWithAvailability = classesForSelectedDate.map((classItem) => {
       const bookedSpots = bookingsByClassId.get(classItem.id) ?? 0;
       const availableSpots = Math.max(classItem.capacity - bookedSpots, 0);
 
@@ -153,6 +195,7 @@ export async function POST(request: Request) {
       trainerId,
       dayOfWeek,
       classDate,
+      recurrenceIntervalWeeks,
       startTime,
       endTime,
       capacity,
@@ -161,16 +204,14 @@ export async function POST(request: Request) {
     let parsedClassDate: Date | null = null;
     let resolvedDayOfWeek = dayOfWeek;
 
-    if (classDate) {
-      parsedClassDate = new Date(`${classDate}T00:00:00.000Z`);
-      if (Number.isNaN(parsedClassDate.getTime())) {
-        return NextResponse.json(
-          { error: "Fecha de clase inválida" },
-          { status: 400 },
-        );
-      }
-      resolvedDayOfWeek = parsedClassDate.getUTCDay();
+    parsedClassDate = new Date(`${classDate}T00:00:00.000Z`);
+    if (Number.isNaN(parsedClassDate.getTime())) {
+      return NextResponse.json(
+        { error: "Fecha de clase inválida" },
+        { status: 400 },
+      );
     }
+    resolvedDayOfWeek = parsedClassDate.getUTCDay();
 
     // Crear la clase en la base de datos
     const newClass = await db.class.create({
@@ -179,6 +220,7 @@ export async function POST(request: Request) {
         trainerId,
         dayOfWeek: resolvedDayOfWeek,
         classDate: parsedClassDate,
+        recurrenceIntervalWeeks: recurrenceIntervalWeeks ?? null,
         startTime,
         endTime,
         capacity,
@@ -233,6 +275,7 @@ export async function PUT(request: Request) {
       trainerId,
       dayOfWeek,
       classDate,
+      recurrenceIntervalWeeks,
       startTime,
       endTime,
       capacity,
@@ -241,16 +284,14 @@ export async function PUT(request: Request) {
     let parsedClassDate: Date | null = null;
     let resolvedDayOfWeek = dayOfWeek;
 
-    if (classDate) {
-      parsedClassDate = new Date(`${classDate}T00:00:00.000Z`);
-      if (Number.isNaN(parsedClassDate.getTime())) {
-        return NextResponse.json(
-          { error: "Fecha de clase inválida" },
-          { status: 400 },
-        );
-      }
-      resolvedDayOfWeek = parsedClassDate.getUTCDay();
+    parsedClassDate = new Date(`${classDate}T00:00:00.000Z`);
+    if (Number.isNaN(parsedClassDate.getTime())) {
+      return NextResponse.json(
+        { error: "Fecha de clase inválida" },
+        { status: 400 },
+      );
     }
+    resolvedDayOfWeek = parsedClassDate.getUTCDay();
 
     // Verificar que la clase existe
     const existingClass = await db.class.findUnique({
@@ -272,6 +313,7 @@ export async function PUT(request: Request) {
         trainerId,
         dayOfWeek: resolvedDayOfWeek,
         classDate: parsedClassDate,
+        recurrenceIntervalWeeks: recurrenceIntervalWeeks ?? null,
         startTime,
         endTime,
         capacity,

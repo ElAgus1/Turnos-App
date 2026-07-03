@@ -23,6 +23,33 @@ type ClassItem = {
 
 const WEEKDAY_LABELS = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
 
+function capitalizeLabel(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function getMonthWindowLabel(days: Date[]) {
+  if (days.length === 0) return "";
+
+  const first = days[0];
+  const last = days[days.length - 1];
+
+  const firstMonth = new Intl.DateTimeFormat("es-AR", {
+    month: "long",
+    year: "numeric",
+  }).format(first);
+
+  const lastMonth = new Intl.DateTimeFormat("es-AR", {
+    month: "long",
+    year: "numeric",
+  }).format(last);
+
+  if (firstMonth === lastMonth) {
+    return capitalizeLabel(firstMonth);
+  }
+
+  return `${capitalizeLabel(firstMonth)} - ${capitalizeLabel(lastMonth)}`;
+}
+
 function buildNextSevenDays() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -62,12 +89,15 @@ export function ClassSelector() {
   const [bookingClassId, setBookingClassId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [daysWithClasses, setDaysWithClasses] = useState<
+    Record<string, boolean>
+  >({});
   const days = useMemo(
     () => buildSevenDaysFrom(windowStartDate),
     [windowStartDate],
   );
 
-  const selectedDayOfWeek = selectedDate.getDay();
+  const monthWindowLabel = useMemo(() => getMonthWindowLabel(days), [days]);
 
   useEffect(() => {
     const fetchClasses = async () => {
@@ -76,16 +106,19 @@ export function ClassSelector() {
 
       try {
         const selectedDateString = toDateOnlyString(selectedDate);
-        const response = await fetch(
-          `/api/classes?dayOfWeek=${selectedDayOfWeek}&date=${selectedDateString}`,
-        );
+        const response = await fetch(`/api/classes?date=${selectedDateString}`);
         const data = await response.json();
 
         if (!response.ok) {
           throw new Error(data.error ?? "No se pudieron cargar las clases");
         }
 
-        setClasses(data.classes ?? []);
+        const selectedClasses = data.classes ?? [];
+        setClasses(selectedClasses);
+        setDaysWithClasses((prev) => ({
+          ...prev,
+          [selectedDateString]: selectedClasses.length > 0,
+        }));
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Error al obtener las clases";
@@ -97,7 +130,46 @@ export function ClassSelector() {
     };
 
     fetchClasses();
-  }, [refreshKey, selectedDate, selectedDayOfWeek]);
+  }, [refreshKey, selectedDate]);
+
+  useEffect(() => {
+    const fetchDaysAvailability = async () => {
+      try {
+        const availabilityEntries = await Promise.allSettled(
+          days.map(async (day) => {
+            const dateString = toDateOnlyString(day);
+            const response = await fetch(`/api/classes?date=${dateString}`);
+            const data = await response.json();
+
+            if (!response.ok) {
+              return [dateString, false] as const;
+            }
+
+            const hasClasses =
+              Array.isArray(data.classes) && data.classes.length > 0;
+            return [dateString, hasClasses] as const;
+          }),
+        );
+
+        setDaysWithClasses((prev) => {
+          const nextAvailability = { ...prev };
+
+          for (const result of availabilityEntries) {
+            if (result.status === "fulfilled") {
+              const [dateKey, hasClasses] = result.value;
+              nextAvailability[dateKey] = hasClasses;
+            }
+          }
+
+          return nextAvailability;
+        });
+      } catch {
+        // Conservamos el estado previo para evitar perder todos los puntitos.
+      }
+    };
+
+    fetchDaysAvailability();
+  }, [days, refreshKey]);
 
   useEffect(() => {
     const handleBookingUpdated = () => {
@@ -201,9 +273,16 @@ export function ClassSelector() {
         </div>
       </div>
 
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold uppercase tracking-wider text-amber-300">
+          {monthWindowLabel}
+        </p>
+      </div>
+
       <div className="flex gap-3 overflow-x-auto pb-1">
         {days.map((day) => {
           const isSelected = day.toDateString() === selectedDate.toDateString();
+          const hasClasses = daysWithClasses[toDateOnlyString(day)] ?? false;
 
           return (
             <button
@@ -224,10 +303,22 @@ export function ClassSelector() {
                 {WEEKDAY_LABELS[day.getDay()]}
               </p>
               <p className="text-lg font-bold leading-tight">{day.getDate()}</p>
+              <div className="mt-2 h-2 flex items-center">
+                {hasClasses && (
+                  <span
+                    className="h-2 w-2 rounded-full bg-amber-400"
+                    aria-hidden="true"
+                  />
+                )}
+              </div>
             </button>
           );
         })}
       </div>
+
+      <p className="text-xs text-zinc-500">
+        Punto amarillo: hay clases ese dia.
+      </p>
 
       {error && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">

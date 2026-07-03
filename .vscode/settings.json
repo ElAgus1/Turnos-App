@@ -1,0 +1,14 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "console.log(counts.rows[0])": true,
+        "counts.rows[0]": true,
+        "const": true,
+        "console.log(rows.rows)": true,
+        "rows.rows": true,
+        "await": true,
+        "err": true,
+        ">": true,
+        "console.error(err)": true,
+        "process.exit(1)": true
+    }
+}

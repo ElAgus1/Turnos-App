@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,7 +14,7 @@ export async function PATCH(
     }
 
     const { name, description, trainerId } = await request.json();
-    const { id } = params;
+    const { id } = await params;
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -78,7 +78,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -86,7 +86,7 @@ export async function DELETE(
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     // Verificar que existe la actividad
     const existing = await db.activity.findUnique({

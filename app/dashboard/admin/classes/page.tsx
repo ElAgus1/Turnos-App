@@ -10,6 +10,7 @@ interface ClassItem {
   id: string;
   dayOfWeek: number;
   classDate: string | null;
+  recurrenceIntervalWeeks: number | null;
   startTime: string;
   endTime: string;
   capacity: number;
@@ -77,6 +78,13 @@ function formatDateLabel(date: Date) {
   });
 }
 
+function getRecurrenceLabel(recurrenceIntervalWeeks: number | null) {
+  if (recurrenceIntervalWeeks === 1) return "Semanal";
+  if (recurrenceIntervalWeeks === 2) return "Cada 2 semanas";
+  if (recurrenceIntervalWeeks === 3) return "Cada 3 semanas";
+  return "Sin repetición";
+}
+
 export default function AdminClassesPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -91,6 +99,7 @@ export default function AdminClassesPage() {
     trainerId: "",
     dayOfWeek: 1,
     classDate: "",
+    recurrenceIntervalWeeks: null as number | null,
     startTime: "",
     endTime: "",
     capacity: 20,
@@ -135,6 +144,7 @@ export default function AdminClassesPage() {
       trainerId: cls.trainerId,
       dayOfWeek: cls.dayOfWeek,
       classDate: cls.classDate ? toDateInputValue(new Date(cls.classDate)) : "",
+      recurrenceIntervalWeeks: cls.recurrenceIntervalWeeks,
       startTime: cls.startTime,
       endTime: cls.endTime,
       capacity: cls.capacity,
@@ -301,6 +311,30 @@ export default function AdminClassesPage() {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
+                  Repetición
+                </label>
+                <select
+                  value={editData.recurrenceIntervalWeeks ?? "none"}
+                  onChange={(e) =>
+                    setEditData({
+                      ...editData,
+                      recurrenceIntervalWeeks:
+                        e.target.value === "none"
+                          ? null
+                          : Number(e.target.value),
+                    })
+                  }
+                  className="w-full p-2.5 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-colors"
+                >
+                  <option value="none">Solo esta fecha</option>
+                  <option value="1">Todas las semanas</option>
+                  <option value="2">Cada 2 semanas</option>
+                  <option value="3">Cada 3 semanas</option>
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
@@ -450,6 +484,9 @@ export default function AdminClassesPage() {
                             </h4>
                             <p className="text-xs text-zinc-400">
                               Profe: {cls.trainer.name}
+                            </p>
+                            <p className="text-xs text-zinc-500 mt-1">
+                              {getRecurrenceLabel(cls.recurrenceIntervalWeeks)}
                             </p>
                             <div className="flex justify-between items-center mt-2 text-xs font-semibold text-zinc-400">
                               <span>

@@ -50,14 +50,15 @@ model Activity {
 }
 
 model Class {
-  id         String    @id @default(uuid())
-  activityId String
-  trainerId  String
-  dayOfWeek  Int
-  classDate  DateTime?
-  startTime  String
-  endTime    String
-  capacity   Int
+  id                      String    @id @default(uuid())
+  activityId              String
+  trainerId               String
+  dayOfWeek               Int
+  classDate               DateTime?
+  recurrenceIntervalWeeks Int?
+  startTime               String
+  endTime                 String
+  capacity                Int
 
   activity Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
   trainer  User      @relation("TrainerClasses", fields: [trainerId], references: [id])

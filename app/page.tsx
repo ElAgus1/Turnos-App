@@ -16,7 +16,7 @@ export default async function HomePage() {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f1f23_1px,transparent_1px),linear-gradient(to_bottom,#1f1f23_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20 pointer-events-none" />
 
       {/* 1. NAVBAR */}
-      <header className="relative z-10 border-b border-zinc-900 bg-zinc-950/60 backdrop-blur-md sticky top-0">
+      <header className="fixed top-0 inset-x-0 z-50 border-b border-zinc-900 bg-zinc-950/70 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-amber-400 text-zinc-950 font-black tracking-tighter text-base shadow-md shadow-amber-400/20">
@@ -36,13 +36,13 @@ export default async function HomePage() {
               Inicio
             </a>
             <a
-              href="how-works"
+              href="#como-funciona"
               className="hover:text-amber-400 transition-colors"
             >
               Cómo funciona
             </a>
             <a
-              href="about-us"
+              href="#nosotros"
               className="hover:text-amber-400 transition-colors"
             >
               Sobre Nosotros
@@ -72,7 +72,7 @@ export default async function HomePage() {
       {/* 2. HERO SECTION */}
       <section
         id="inicio"
-        className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-20 text-center lg:pt-32"
+        className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20 text-center lg:pt-36 scroll-mt-24"
       >
         <span className="px-3 py-1 text-xs font-semibold uppercase tracking-widest rounded-full bg-amber-400/10 border border-amber-400/20 text-amber-400 mb-6 inline-block">
           Tu entrenamiento, bajo control
@@ -108,7 +108,7 @@ export default async function HomePage() {
       {/* 3. CÓMO FUNCIONA */}
       <section
         id="como-funciona"
-        className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 border-t border-zinc-900/80"
+        className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 border-t border-zinc-900/80 scroll-mt-24"
       >
         <div className="text-center mb-16">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-white">
@@ -164,7 +164,7 @@ export default async function HomePage() {
       {/* 4. ABOUT US / SOBRE NOSOTROS */}
       <section
         id="nosotros"
-        className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 border-t border-zinc-900/80 bg-gradient-to-b from-transparent to-zinc-900/10"
+        className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 border-t border-zinc-900/80 bg-gradient-to-b from-transparent to-zinc-900/10 scroll-mt-24"
       >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
