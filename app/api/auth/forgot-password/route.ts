@@ -35,6 +35,20 @@ function createTransporter() {
   });
 }
 
+function hasPartialSmtpConfig() {
+  const values = [
+    process.env.SMTP_HOST,
+    process.env.SMTP_PORT,
+    process.env.SMTP_USER,
+    process.env.SMTP_PASS,
+  ].map((value) => (value ?? "").trim());
+
+  const someConfigured = values.some((value) => value.length > 0);
+  const allConfigured = values.every((value) => value.length > 0);
+
+  return someConfigured && !allConfigured;
+}
+
 export async function POST(request: Request) {
   let json: unknown;
 
@@ -72,6 +86,16 @@ export async function POST(request: Request) {
       },
     });
 
+    if (hasPartialSmtpConfig()) {
+      return NextResponse.json(
+        {
+          error:
+            "Configuración SMTP incompleta. Definí SMTP_HOST, SMTP_PORT, SMTP_USER y SMTP_PASS.",
+        },
+        { status: 500 },
+      );
+    }
+
     const transporter = createTransporter();
     if (transporter) {
       const from = process.env.EMAIL_FROM ?? "no-reply@localhost";
@@ -101,6 +125,6 @@ export async function POST(request: Request) {
   return NextResponse.json({
     message:
       "Si la cuenta existe, se envió un correo con un enlace para restablecer la contraseña.",
-    resetUrl: process.env.SMTP_HOST ? null : resetUrl,
+    resetUrl: createTransporter() ? null : resetUrl,
   });
 }

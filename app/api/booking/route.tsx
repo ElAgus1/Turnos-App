@@ -46,13 +46,13 @@ export async function POST(request: Request) {
   try {
     json = await request.json();
   } catch {
-    return NextResponse.json({ error: "Cuerpo inv�lido" }, { status: 400 });
+    return NextResponse.json({ error: "Cuerpo invalido" }, { status: 400 });
   }
 
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? "Datos inv�lidos" },
+      { error: parsed.error.issues[0]?.message ?? "Datos invalidos" },
       { status: 400 },
     );
   }

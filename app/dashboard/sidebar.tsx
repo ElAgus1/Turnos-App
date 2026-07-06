@@ -131,6 +131,21 @@ export default function Sidebar({
                     <span className="animate-fade-in">Administrar Clases</span>
                   )}
                 </Link>
+
+                <Link
+                  href="/dashboard/admin/users"
+                  className={getLinkClasses(
+                    pathname.startsWith("/dashboard/admin/users"),
+                  )}
+                  title="Administrar usuarios"
+                >
+                  <span className="text-base shrink-0">🧑‍💼</span>
+                  {isOpen && (
+                    <span className="animate-fade-in">
+                      Administrar Usuarios
+                    </span>
+                  )}
+                </Link>
               </div>
             )}
           </nav>
