@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useBooking } from "@/actions/useBooking";
 
 type ClassItem = {
   id: string;
@@ -80,6 +81,15 @@ function toDateOnlyString(date: Date) {
 }
 
 export function ClassSelector() {
+  const {
+    createBooking,
+    isLoading: isBookingLoading,
+    error: bookingError,
+    success: bookingSuccess,
+    resetError: resetBookingError,
+    resetSuccess: resetBookingSuccess,
+  } = useBooking();
+
   const initialDays = useMemo(buildNextSevenDays, []);
   const [windowStartDate, setWindowStartDate] = useState<Date>(initialDays[0]);
   const [selectedDate, setSelectedDate] = useState<Date>(initialDays[0]);
@@ -87,8 +97,7 @@ export function ClassSelector() {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [bookingClassId, setBookingClassId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [classesError, setClassesError] = useState<string | null>(null);
   const [daysWithClasses, setDaysWithClasses] = useState<
     Record<string, boolean>
   >({});
@@ -102,7 +111,7 @@ export function ClassSelector() {
   useEffect(() => {
     const fetchClasses = async () => {
       setLoadingClasses(true);
-      setError(null);
+      setClassesError(null);
 
       try {
         const selectedDateString = toDateOnlyString(selectedDate);
@@ -122,7 +131,7 @@ export function ClassSelector() {
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Error al obtener las clases";
-        setError(message);
+        setClassesError(message);
         setClasses([]);
       } finally {
         setLoadingClasses(false);
@@ -185,31 +194,14 @@ export function ClassSelector() {
 
   const reserveClass = async (classId: string) => {
     setBookingClassId(classId);
-    setError(null);
-    setSuccess(null);
+    resetBookingError();
+    resetBookingSuccess();
 
     try {
-      const response = await fetch("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          classId,
-          date: toDateOnlyString(selectedDate),
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error ?? "No se pudo reservar el cupo");
-      }
-
-      setSuccess("Reserva confirmada.");
+      await createBooking(classId, toDateOnlyString(selectedDate));
       window.dispatchEvent(new Event("booking:updated"));
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "No se pudo reservar el cupo";
-      setError(message);
+    } catch {
+      // El hook ya maneja el mensaje de error.
     } finally {
       setBookingClassId(null);
     }
@@ -240,8 +232,8 @@ export function ClassSelector() {
 
               setSelectedDate(pickedDate);
               setWindowStartDate(pickedDate);
-              setSuccess(null);
-              setError(null);
+              resetBookingSuccess();
+              resetBookingError();
             }}
             className="w-full sm:w-[220px] rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-200 focus:border-amber-400 focus:outline-none"
           />
@@ -290,8 +282,8 @@ export function ClassSelector() {
               type="button"
               onClick={() => {
                 setSelectedDate(day);
-                setSuccess(null);
-                setError(null);
+                resetBookingSuccess();
+                resetBookingError();
               }}
               className={`min-w-[86px] rounded-xl border px-3 py-2 text-left transition-colors ${
                 isSelected
@@ -320,15 +312,21 @@ export function ClassSelector() {
         Punto amarillo: hay clases ese dia.
       </p>
 
-      {error && (
+      {classesError && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
-          {error}
+          {classesError}
         </div>
       )}
 
-      {success && (
+      {bookingError && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+          {bookingError}
+        </div>
+      )}
+
+      {bookingSuccess && (
         <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">
-          {success}
+          {bookingSuccess}
         </div>
       )}
 
@@ -385,10 +383,10 @@ export function ClassSelector() {
                 <button
                   type="button"
                   onClick={() => reserveClass(cls.id)}
-                  disabled={isBooking || isFull}
+                  disabled={isBookingLoading || isFull}
                   className="mt-4 inline-flex items-center justify-center rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isBooking
+                  {isBookingLoading && isBooking
                     ? "Reservando..."
                     : isFull
                       ? "Clase llena"

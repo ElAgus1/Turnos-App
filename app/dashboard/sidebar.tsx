@@ -105,9 +105,9 @@ export default function Sidebar({
                 </p>
 
                 <Link
-                  href="/dashboard/actividades"
+                  href="/dashboard/admin/actividades"
                   className={getLinkClasses(
-                    pathname.startsWith("/dashboard/actividades"),
+                    pathname.startsWith("/dashboard/admin/actividades"),
                   )}
                   title="Administrar actividades"
                 >

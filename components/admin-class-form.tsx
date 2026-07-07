@@ -164,7 +164,7 @@ export function AdminClassForm({
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
           No hay actividades cargadas. Crea una primero en{" "}
           <Link
-            href="/dashboard/actividades"
+            href="/dashboard/admin/actividades"
             className="underline font-semibold"
           >
             Administrar Actividades
