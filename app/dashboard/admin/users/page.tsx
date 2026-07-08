@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { Edit2, Trash2 } from "lucide-react";
 import Sidebar from "../../sidebar";
 
 type Role = "ADMIN" | "TRAINER" | "CLIENT";
@@ -30,8 +31,19 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [loadingCreate, setLoadingCreate] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const [editForm, setEditForm] = useState({
+    email: "",
+    name: "",
+    phone: "",
+    role: "CLIENT" as Role,
+    password: "",
+  });
 
   const [form, setForm] = useState({
     email: "",
@@ -135,6 +147,111 @@ export default function AdminUsersPage() {
       setError("Error de conexión al crear usuario.");
     } finally {
       setLoadingCreate(false);
+    }
+  };
+
+  const startEdit = (user: UserItem) => {
+    setEditingId(user.id);
+    setEditForm({
+      email: user.email,
+      name: user.name,
+      phone: user.phone ?? "",
+      role: user.role,
+      password: "",
+    });
+    setError(null);
+    setSuccess(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditForm({
+      email: "",
+      name: "",
+      phone: "",
+      role: "CLIENT",
+      password: "",
+    });
+  };
+
+  const handleUpdateUser = async (userId: string) => {
+    setError(null);
+    setSuccess(null);
+
+    if (!editForm.email.trim() || !editForm.name.trim()) {
+      setError("Nombre y email son obligatorios para editar.");
+      return;
+    }
+
+    if (editForm.password && editForm.password.length < 8) {
+      setError("Si cargás contraseña, debe tener al menos 8 caracteres.");
+      return;
+    }
+
+    setLoadingEdit(true);
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: editForm.email,
+          name: editForm.name,
+          phone: editForm.phone,
+          role: editForm.role,
+          ...(editForm.password ? { password: editForm.password } : {}),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "No se pudo actualizar el usuario.");
+        return;
+      }
+
+      setUsers((prev) =>
+        prev.map((item) => (item.id === userId ? data.user : item)),
+      );
+      setSuccess(`Usuario actualizado: ${data.user.email}`);
+      cancelEdit();
+    } catch {
+      setError("Error de conexión al actualizar usuario.");
+    } finally {
+      setLoadingEdit(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, userEmail: string) => {
+    const confirmed = confirm(
+      `¿Seguro que querés eliminar a ${userEmail}? Esta acción no se puede deshacer.`,
+    );
+    if (!confirmed) return;
+
+    setError(null);
+    setSuccess(null);
+    setDeletingUserId(userId);
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "No se pudo eliminar el usuario.");
+        return;
+      }
+
+      setUsers((prev) => prev.filter((item) => item.id !== userId));
+      setSuccess(`Usuario eliminado: ${userEmail}`);
+    } catch {
+      setError("Error de conexión al eliminar usuario.");
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -337,6 +454,7 @@ export default function AdminUsersPage() {
                     <th className="py-2 pr-4">Teléfono</th>
                     <th className="py-2 pr-4">Contraseña</th>
                     <th className="py-2 pr-0">Alta</th>
+                    <th className="py-2 pl-4 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -345,20 +463,142 @@ export default function AdminUsersPage() {
                       key={user.id}
                       className="border-b border-zinc-900/80 text-zinc-200"
                     >
-                      <td className="py-3 pr-4">{user.name}</td>
-                      <td className="py-3 pr-4">{user.email}</td>
-                      <td className="py-3 pr-4">
-                        <span className="px-2 py-0.5 rounded bg-amber-400/10 border border-amber-400/20 text-amber-400 text-xs font-semibold">
-                          {ROLE_LABELS[user.role]}
-                        </span>
-                      </td>
-                      <td className="py-3 pr-4">{user.phone || "-"}</td>
-                      <td className="py-3 pr-4">
-                        {user.hasPassword ? "Configurada" : "Sin definir"}
-                      </td>
-                      <td className="py-3 pr-0 text-zinc-400">
-                        {new Date(user.createdAt).toLocaleDateString("es-AR")}
-                      </td>
+                      {editingId === user.id ? (
+                        <>
+                          <td className="py-3 pr-4">
+                            <input
+                              type="text"
+                              value={editForm.name}
+                              onChange={(e) =>
+                                setEditForm((prev) => ({
+                                  ...prev,
+                                  name: e.target.value,
+                                }))
+                              }
+                              className="w-full px-2 py-1 rounded bg-zinc-950 border border-zinc-700"
+                            />
+                          </td>
+                          <td className="py-3 pr-4">
+                            <input
+                              type="email"
+                              value={editForm.email}
+                              onChange={(e) =>
+                                setEditForm((prev) => ({
+                                  ...prev,
+                                  email: e.target.value,
+                                }))
+                              }
+                              className="w-full px-2 py-1 rounded bg-zinc-950 border border-zinc-700"
+                            />
+                          </td>
+                          <td className="py-3 pr-4">
+                            <select
+                              value={editForm.role}
+                              onChange={(e) =>
+                                setEditForm((prev) => ({
+                                  ...prev,
+                                  role: e.target.value as Role,
+                                }))
+                              }
+                              className="w-full px-2 py-1 rounded bg-zinc-950 border border-zinc-700"
+                            >
+                              <option value="CLIENT">Cliente</option>
+                              <option value="TRAINER">Entrenador</option>
+                              <option value="ADMIN">Administrador</option>
+                            </select>
+                          </td>
+                          <td className="py-3 pr-4">
+                            <input
+                              type="text"
+                              value={editForm.phone}
+                              onChange={(e) =>
+                                setEditForm((prev) => ({
+                                  ...prev,
+                                  phone: e.target.value,
+                                }))
+                              }
+                              className="w-full px-2 py-1 rounded bg-zinc-950 border border-zinc-700"
+                            />
+                          </td>
+                          <td className="py-3 pr-4">
+                            <input
+                              type="password"
+                              value={editForm.password}
+                              onChange={(e) =>
+                                setEditForm((prev) => ({
+                                  ...prev,
+                                  password: e.target.value,
+                                }))
+                              }
+                              placeholder="Nueva (opcional)"
+                              className="w-full px-2 py-1 rounded bg-zinc-950 border border-zinc-700"
+                            />
+                          </td>
+                          <td className="py-3 pr-0 text-zinc-400">
+                            {new Date(user.createdAt).toLocaleDateString(
+                              "es-AR",
+                            )}
+                          </td>
+                          <td className="py-3 pl-4 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => handleUpdateUser(user.id)}
+                                disabled={loadingEdit}
+                                className="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+                              >
+                                Guardar
+                              </button>
+                              <button
+                                onClick={cancelEdit}
+                                disabled={loadingEdit}
+                                className="px-3 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-white text-xs"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="py-3 pr-4">{user.name}</td>
+                          <td className="py-3 pr-4">{user.email}</td>
+                          <td className="py-3 pr-4">
+                            <span className="px-2 py-0.5 rounded bg-amber-400/10 border border-amber-400/20 text-amber-400 text-xs font-semibold">
+                              {ROLE_LABELS[user.role]}
+                            </span>
+                          </td>
+                          <td className="py-3 pr-4">{user.phone || "-"}</td>
+                          <td className="py-3 pr-4">
+                            {user.hasPassword ? "Configurada" : "Sin definir"}
+                          </td>
+                          <td className="py-3 pr-0 text-zinc-400">
+                            {new Date(user.createdAt).toLocaleDateString(
+                              "es-AR",
+                            )}
+                          </td>
+                          <td className="py-3 pl-4 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => startEdit(user)}
+                                className="p-1.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20"
+                                title="Editar usuario"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleDeleteUser(user.id, user.email)
+                                }
+                                disabled={deletingUserId === user.id}
+                                className="p-1.5 rounded bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 disabled:opacity-60"
+                                title="Eliminar usuario"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>
