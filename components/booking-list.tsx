@@ -15,6 +15,14 @@ interface Booking {
   };
 }
 
+function getStatusLabel(status: string) {
+  if (status === "CONFIRMED") return "Confirmada";
+  if (status === "CANCELLED") return "Cancelada";
+  if (status === "ATTENDED") return "Asistida";
+  if (status === "PENDING") return "Pendiente";
+  return status;
+}
+
 export function BookingList() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,9 +30,7 @@ export function BookingList() {
     cancelBooking,
     cancellingBookingId,
     error: cancelError,
-    success: cancelSuccess,
     resetError: resetCancelError,
-    resetSuccess: resetCancelSuccess,
   } = useCancelBooking();
 
   const fetchBookings = async () => {
@@ -57,7 +63,6 @@ export function BookingList() {
     if (!confirm("¿Estás seguro de que querés cancelar este turno?")) return;
 
     resetCancelError();
-    resetCancelSuccess();
 
     try {
       await cancelBooking(bookingId);
@@ -67,9 +72,12 @@ export function BookingList() {
     }
   };
 
-  if (loading) return <p className="text-gray-500">Cargando tus turnos...</p>;
+  if (loading) {
+    return <p className="text-sm text-zinc-400">Cargando tus turnos...</p>;
+  }
+
   if (bookings.length === 0)
-    return <p className="text-gray-500">No tenés reservas activas.</p>;
+    return <p className="text-sm text-zinc-400">No tenés reservas activas.</p>;
 
   return (
     <div className="space-y-4">
@@ -79,41 +87,36 @@ export function BookingList() {
         </div>
       )}
 
-      {cancelSuccess && (
-        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">
-          {cancelSuccess}
-        </div>
-      )}
-
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {bookings.map((booking) => (
           <div
             key={booking.id}
-            className="p-4 border rounded-xl shadow-sm bg-white flex flex-col justify-between"
+            className="flex flex-col justify-between rounded-2xl border border-zinc-800/80 bg-zinc-950/70 p-5 shadow-xl backdrop-blur-xl"
           >
             <div>
               <span
-                className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
                   booking.status === "CANCELLED"
-                    ? "bg-red-100 text-red-800"
-                    : "bg-green-100 text-green-800"
+                    ? "border-red-500/25 bg-red-500/10 text-red-300"
+                    : "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
                 }`}
               >
-                {booking.status}
+                {getStatusLabel(booking.status)}
               </span>
-              <h3 className="text-lg font-bold mt-2">
+
+              <h3 className="mt-3 text-lg font-bold text-white">
                 {booking.class.activity.name}
               </h3>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-zinc-400">
                 Profesor: {booking.class.trainer.name}
               </p>
-              <p className="text-sm text-gray-700 mt-1">
+              <p className="mt-3 text-sm text-zinc-300">
                 📅{" "}
                 {new Date(booking.date).toLocaleDateString("es-AR", {
                   timeZone: "UTC",
                 })}
               </p>
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-zinc-300">
                 ⏰ {booking.class.startTime} - {booking.class.endTime} hs
               </p>
             </div>
@@ -121,7 +124,7 @@ export function BookingList() {
             <button
               onClick={() => handleCancel(booking.id)}
               disabled={cancellingBookingId === booking.id}
-              className="mt-4 w-full bg-red-50 text-red-600 hover:bg-red-100 py-2 rounded-lg font-medium transition"
+              className="mt-5 w-full rounded-xl border border-red-500/25 bg-red-500/10 py-2.5 font-medium text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {cancellingBookingId === booking.id
                 ? "Cancelando..."

@@ -192,6 +192,18 @@ export function ClassSelector() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!bookingSuccess) return;
+
+    const timeoutId = window.setTimeout(() => {
+      resetBookingSuccess();
+    }, 2500);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [bookingSuccess, resetBookingSuccess]);
+
   const reserveClass = async (classId: string) => {
     setBookingClassId(classId);
     resetBookingError();
